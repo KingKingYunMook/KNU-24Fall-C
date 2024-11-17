@@ -3,181 +3,169 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 고객 등급 정의
-typedef enum {
-    BRONZE = 1,  // 1부터 시작하도록 수정
-    SILVER,
-    GOLD,
-    VIP
-} Rank;
-
-// 고객 구조체 정의
-typedef struct Customer {
+struct Customer {
     char* customerName;
-    Rank rank;
+    int rank;           // 1: 최상위, 2: 중간, 3: 최하위
     int order_amount;
     int point;
     struct Customer* prev;
     struct Customer* next;
-} Customer;
+};
 
-Customer* head = NULL;
+struct Customer* head = NULL;
 
-// 등급을 문자열로 변환
-const char* rankToString(Rank rank) {
-    switch (rank) {
-    case VIP: return "VIP";
-    case GOLD: return "GOLD";
-    case SILVER: return "SILVER";
-    default: return "BRONZE";
-    }
+struct Customer* create_customer(char* name, int rank, int amount, int point) {
+    struct Customer* new_customer = (struct Customer*)malloc(sizeof(struct Customer));
+    new_customer->customerName = (char*)malloc(strlen(name) + 1);
+    strcpy(new_customer->customerName, name);
+    new_customer->rank = rank;
+    new_customer->order_amount = amount;
+    new_customer->point = point;
+    new_customer->prev = NULL;
+    new_customer->next = NULL;
+    return new_customer;
 }
 
-// 고객 추가 함수 (우선순위에 따라 정렬)
-void addCustomer(char* name, Rank rank, int order_amount, int point) {
-    Customer* newCustomer = (Customer*)malloc(sizeof(Customer));
-    newCustomer->customerName = _strdup(name);
-    newCustomer->rank = rank;
-    newCustomer->order_amount = order_amount;
-    newCustomer->point = point;
-    newCustomer->prev = NULL;
-    newCustomer->next = NULL;
+void insert_customer(char* name, int rank, int amount, int point) {
+    struct Customer* new_customer = create_customer(name, rank, amount, point);
 
-    // 빈 리스트인 경우
     if (head == NULL) {
-        head = newCustomer;
+        head = new_customer;
         return;
     }
 
-    // 우선순위에 따라 삽입 위치 찾기
-    Customer* current = head;
-    while (current != NULL && current->rank >= newCustomer->rank) {
-        if (current->rank == newCustomer->rank &&
-            current->order_amount < newCustomer->order_amount)
-            break;
-        current = current->next;
-    }
-
-    // 맨 앞에 삽입
-    if (current == head) {
-        newCustomer->next = head;
-        head->prev = newCustomer;
-        head = newCustomer;
-    }
-    // 중간이나 끝에 삽입
-    else {
-        newCustomer->prev = current->prev;
-        newCustomer->next = current;
-        current->prev->next = newCustomer;
-        if (current != NULL)
-            current->prev = newCustomer;
-    }
-}
-
-// 고객 삭제 함수
-void deleteCustomer(char* name) {
-    Customer* current = head;
-    while (current != NULL) {
-        if (strcmp(current->customerName, name) == 0) {
-            if (current->prev != NULL)
-                current->prev->next = current->next;
-            else
-                head = current->next;
-
-            if (current->next != NULL)
-                current->next->prev = current->prev;
-
-            free(current->customerName);
-            free(current);
+    struct Customer* cur = head;
+    while (cur != NULL) {
+        if (new_customer->rank < cur->rank ||
+            (new_customer->rank == cur->rank && new_customer->order_amount >= cur->order_amount)) {
+            if (cur == head) {
+                new_customer->next = head;
+                head->prev = new_customer;
+                head = new_customer;
+            }
+            else {
+                new_customer->prev = cur->prev;
+                new_customer->next = cur;
+                cur->prev->next = new_customer;
+                cur->prev = new_customer;
+            }
             return;
         }
-        current = current->next;
+        if (cur->next == NULL) {
+            cur->next = new_customer;
+            new_customer->prev = cur;
+            return;
+        }
+        cur = cur->next;
     }
 }
 
-// 전체 고객 출력 함수
-void printAllCustomers() {
-    Customer* current = head;
-    printf("\n현재 고객 목록:\n");
-    printf("이름\t등급\t주문금액\t포인트\n");
-    printf("--------------------------------\n");
-    while (current != NULL) {
-        printf("%s\t%s\t%d\t%d\n",
-            current->customerName,
-            rankToString(current->rank),
-            current->order_amount,
-            current->point);
-        current = current->next;
+void update_customer(char* name, int new_amount, int new_point) {
+    struct Customer* cur = head;
+    while (cur != NULL) {
+        if (strcmp(cur->customerName, name) == 0) {
+            cur->order_amount = new_amount;
+            cur->point = new_point;
+            return;
+        }
+        cur = cur->next;
     }
-    printf("--------------------------------\n\n");
 }
 
-// 등급 메뉴 출력 및 선택 함수
-Rank selectRank() {
-    int rank;
-    printf("고객 등급 선택:\n");
-    printf("1. BRONZE\n");
-    printf("2. SILVER\n");
-    printf("3. GOLD\n");
-    printf("4. VIP\n");
-    printf("선택: ");
-    scanf_s("%d", &rank);
-
-    // 잘못된 입력 처리
-    if (rank < BRONZE || rank > VIP) {
-        printf("잘못된 등급 선택. BRONZE로 설정됩니다.\n");
-        return BRONZE;
+void delete_customer(char* name) {
+    struct Customer* cur = head;
+    while (cur != NULL) {
+        if (strcmp(cur->customerName, name) == 0) {
+            if (cur == head) {
+                head = cur->next;
+                if (head != NULL) head->prev = NULL;
+            }
+            else {
+                cur->prev->next = cur->next;
+                if (cur->next != NULL) cur->next->prev = cur->prev;
+            }
+            free(cur->customerName);
+            free(cur);
+            return;
+        }
+        cur = cur->next;
     }
-    return (Rank)rank;
+}
+
+void print_customers() {
+    printf("\n===== 고객 리스트 =====\n");
+    struct Customer* cur = head;
+    while (cur != NULL) {
+        printf("이름: %s, 등급: %d, 주문금액: %d, 포인트: %d\n",
+            cur->customerName, cur->rank, cur->order_amount, cur->point);
+        cur = cur->next;
+    }
+    printf("=====================\n");
 }
 
 int main() {
     int choice;
-    char name[100];
-    int order_amount, point;
-    Rank rank;
+    char name[50];
+    int rank, amount, point;
 
     while (1) {
-        printf("1. 고객 추가\n");
-        printf("2. 고객 삭제\n");
-        printf("3. 전체 고객 조회\n");
-        printf("4. 프로그램 종료\n");
+        printf("\n1. 고객 추가\n");
+        printf("2. 고객 정보 수정\n");
+        printf("3. 고객 삭제\n");
+        printf("4. 고객 리스트 출력\n");
+        printf("5. 프로그램 종료\n");
         printf("선택: ");
         scanf_s("%d", &choice);
+        getchar();
 
         switch (choice) {
         case 1:
             printf("고객 이름: ");
-            scanf_s("%s", name, (unsigned)sizeof(name));
-            rank = selectRank();  // 등급 선택
+            scanf_s("%s", name, sizeof(name));
+            printf("고객 등급 (1:최상위, 2:중간, 3:최하위): ");
+            scanf_s("%d", &rank);
             printf("주문 금액: ");
-            scanf_s("%d", &order_amount);
+            scanf_s("%d", &amount);
             printf("포인트: ");
             scanf_s("%d", &point);
-            addCustomer(name, rank, order_amount, point);
-            printAllCustomers();
+            insert_customer(name, rank, amount, point);
+            print_customers();
             break;
 
         case 2:
-            printf("삭제할 고객 이름: ");
-            scanf_s("%s", name, (unsigned)sizeof(name));
-            deleteCustomer(name);
-            printAllCustomers();
+            printf("수정할 고객 이름: ");
+            scanf_s("%s", name, sizeof(name));
+            printf("새 주문 금액: ");
+            scanf_s("%d", &amount);
+            printf("새 포인트: ");
+            scanf_s("%d", &point);
+            update_customer(name, amount, point);
+            print_customers();
             break;
 
         case 3:
-            printAllCustomers();
+            printf("삭제할 고객 이름: ");
+            scanf_s("%s", name, sizeof(name));
+            delete_customer(name);
+            print_customers();
             break;
 
         case 4:
-            // 메모리 해제
+            print_customers();
+            break;
+
+        case 5:
             while (head != NULL) {
-                Customer* temp = head;
+                struct Customer* temp = head;
                 head = head->next;
                 free(temp->customerName);
                 free(temp);
             }
             return 0;
+
+        default:
+            printf("잘못된 선택입니다.\n");
         }
     }
+    return 0;
 }
